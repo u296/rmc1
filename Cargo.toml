@@ -1,0 +1,17 @@
+[package]
+name = "rmc1"
+version = "0.1.0"
+authors = ["u296 <u296b3g@gmail.com>"]
+edition = "2018"
+
+[profile.release]
+debug = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glium = "*"
+image = "*"
+log = "*"
+env_logger = "*"
+noise = "0.7.0"
