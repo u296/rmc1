@@ -35,7 +35,7 @@ use uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler};
 use glutin::event::{self, Event, WindowEvent};
 
 use world::World;
-use graphics::Mesh;
+use graphics::*;
 
 #[derive(Clone, Copy, Debug)]
 struct FbVert {
@@ -45,40 +45,14 @@ struct FbVert {
 implement_vertex!(FbVert, position);
 
 fn draw(
+    display: &Display,
     mut frame: Frame,
-    world: &World,
-    fbquad: &Mesh<FbVert>,
-    post_prog: &Program,
-    fb: &mut SimpleFrameBuffer,
-    fb_color_tex: &texture::SrgbTexture2d,
-    fb_depth_tex: &texture::DepthTexture2d,
+    world: &mut World,
     ) -> Result<(), glium::SwapBuffersError> {
 
     frame.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
     
-    fb.clear_depth(1.0);
-    world.render(fb);
-
-    let uniforms = uniform! {
-        color: Sampler::new(fb_color_tex)
-            .minify_filter(MinifySamplerFilter::Nearest)
-            .magnify_filter(MagnifySamplerFilter::Nearest),
-        depth: Sampler::new(fb_depth_tex)
-            .minify_filter(MinifySamplerFilter::Nearest)
-            .magnify_filter(MagnifySamplerFilter::Nearest)
-        
-    };
-
-    let params = DrawParameters {
-        depth: glium::Depth {
-            test: glium::DepthTest::Overwrite,
-            write: false,
-            .. Default::default()
-        },
-        .. Default::default()
-    };
-
-    frame.draw(&fbquad.vertices, &fbquad.indices, post_prog, &uniforms, &params).unwrap();
+    world.render(display, &mut frame);
 
     frame.finish()
 }
@@ -93,41 +67,13 @@ fn main() {
 
     
 
-    let fbquad_mesh = {
-        let fbquad_verts_data = &[
-            FbVert{ position: [-1.0, -1.0]},
-            FbVert{ position: [ 1.0, -1.0]},
-            FbVert{ position: [-1.0,  1.0]},
-            FbVert{ position: [ 1.0,  1.0]},
-        ];
+    
 
-        let fbquad_indices_data = &[
-            0, 1, 2,
-            1, 2, 3
-        ];
-        
-        Mesh {
-            vertices: VertexBuffer::new(&display, fbquad_verts_data).unwrap(),
-            indices: IndexBuffer::new(&display, PrimitiveType::TrianglesList, fbquad_indices_data).unwrap(),
-        }
-    };
-
-    let fbquad_shader = match program!(&display,
-        420 => {
-            vertex: include_str!("shaders/fbquad_shader.vert"),
-            fragment: include_str!("shaders/fbquad_shader.frag")
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: {}", e);
-            std::process::exit(1);
-        }
-    };
 
 
 
     let world_generator = terraingen::opensimplex::OpensimplexGenerator::new(
-        Some(74324),
+        Some(453209875342987),
         (0.03, 0.03),
         30.0,
         30.0,
@@ -137,8 +83,8 @@ fn main() {
         &display,
         &world_generator,
         256,
-        256)
-    ));
+        256,
+    )));
 
     
     
@@ -195,7 +141,7 @@ fn main() {
                 // Break from the main loop when the window is closed.
                 glutin::event::WindowEvent::CloseRequested => *control_flow = glutin::event_loop::ControlFlow::Exit,
                 glutin::event::WindowEvent::Resized(s) => {
-                    //*framebuffer_quad_texture.borrow_mut() = texture::Texture2d::empty(&display, s.width, s.height).unwrap();
+                    world.borrow_mut().remake_fb_textures(&display);
                 }
                 _ => (),
             },
@@ -212,22 +158,10 @@ fn main() {
             world.borrow_mut().update(&display, last_frame_time.as_secs_f32());
 
 
-
-            let s = display.gl_window().window().inner_size();
-            let framebuffer_quad_depth_texture = glium::texture::DepthTexture2d::empty(&display, s.width, s.height).unwrap();
-            let framebuffer_quad_color_texture = glium::texture::SrgbTexture2d::empty(&display, s.width, s.height).unwrap();
-
-            let mut fb = SimpleFrameBuffer::with_depth_buffer(&display, &framebuffer_quad_color_texture, &framebuffer_quad_depth_texture).unwrap();
-
-
             draw(
+                &display,
                 display.draw(),
-                &world.borrow(),
-                &fbquad_mesh,
-                &fbquad_shader,
-                &mut fb,
-                &framebuffer_quad_color_texture,
-                &framebuffer_quad_depth_texture,
+                &mut world.borrow_mut(),
             ).unwrap();
 
             if last_frame_time > worst_frame_time {

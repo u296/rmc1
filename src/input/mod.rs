@@ -20,6 +20,15 @@ mod raycast;
 
 const MOUSE_SENSITIVITY: f64 = 0.07;
 
+const FORWARD_KEY: VirtualKeyCode =  VirtualKeyCode::Comma;
+const LEFT_KEY: VirtualKeyCode =     VirtualKeyCode::A;
+const BACKWARD_KEY: VirtualKeyCode = VirtualKeyCode::O;
+const RIGHT_KEY: VirtualKeyCode =    VirtualKeyCode::E;
+const UP_KEY: VirtualKeyCode =       VirtualKeyCode::Space;
+const DOWN_KEY: VirtualKeyCode =     VirtualKeyCode::LControl;
+
+const RELOAD_KEY: VirtualKeyCode =   VirtualKeyCode::F5;
+
 pub struct InputHandler {
     world: Rc<RefCell<World>>,
     capturing_mouse: bool,
@@ -69,20 +78,29 @@ impl InputHandler {
         }
     }
 
-    fn handle_keyboard_event(&mut self, window: &Window, input: &glutin::event::KeyboardInput) -> Option<ControlFlow> {
+    fn handle_keyboard_event(&mut self, display: &Display, input: &glutin::event::KeyboardInput) -> Option<ControlFlow> {
         let pressed = input.state == event::ElementState::Pressed;
         let key = input.virtual_keycode?;
 
         match key {
-            VirtualKeyCode::Space => self.camera_controller.moving_up = pressed,
-            VirtualKeyCode::LControl => self.camera_controller.moving_down = pressed,
-            VirtualKeyCode::Comma => self.camera_controller.moving_forward = pressed,
-            VirtualKeyCode::A => self.camera_controller.moving_left = pressed,
-            VirtualKeyCode::O => self.camera_controller.moving_back = pressed,
-            VirtualKeyCode::E => self.camera_controller.moving_right = pressed,
+            UP_KEY => self.camera_controller.moving_up = pressed,
+            DOWN_KEY => self.camera_controller.moving_down = pressed,
+            FORWARD_KEY => self.camera_controller.moving_forward = pressed,
+            LEFT_KEY => self.camera_controller.moving_left = pressed,
+            BACKWARD_KEY => self.camera_controller.moving_back = pressed,
+            RIGHT_KEY => self.camera_controller.moving_right = pressed,
+
+            RELOAD_KEY => {
+                match self.world.borrow_mut().reload_assets(display) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("{}", e);
+                    }
+                }
+            }
             VirtualKeyCode::Escape => {
                 self.capturing_mouse = false;
-                Self::set_mouse_capture_state(window, false);
+                Self::set_mouse_capture_state(display.gl_window().window(), false);
             },
             _ => (),
         }
@@ -173,7 +191,7 @@ impl InputHandler {
         match event {
             Event::WindowEvent{ event, .. } => match event {
                 WindowEvent::Resized(newsize) => self.handle_window_resize((newsize.width, newsize.height)),
-                WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_event(display.gl_window().window(), input),
+                WindowEvent::KeyboardInput { input, .. } => self.handle_keyboard_event(display, input),
                 WindowEvent::MouseInput { state, button, .. } => self.handle_mouse_button(display, state, button),
                 _ => None,
             },

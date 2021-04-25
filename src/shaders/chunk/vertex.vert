@@ -18,12 +18,14 @@ out vec3 v_normal;
 out vec3 v_local_pos;
                 
 void main() {
+    
+
     vec3 local_vertex_position = (view_rotation * view_translation * model_rotation * model_translation * vec4(position, 1.0)).xyz;
-    gl_Position = projection * view_rotation * view_translation * model_translation * vec4(position, 1.0);//projection *  vec4(local_vertex_position, 1.0);
+    gl_Position = projection * view_rotation * view_translation * model_rotation * model_translation * vec4(position, 1.0);
 
 
 
     v_texcoord = uv;
-    v_normal = (view_rotation * model_rotation * vec4(normal, 1.0)).xyz;
+    v_normal = normalize(normal);//normalize((view_rotation * model_rotation * vec4(normal, 1.0)).xyz);
     v_local_pos = local_vertex_position;
 }

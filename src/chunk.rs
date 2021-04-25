@@ -20,7 +20,7 @@ pub const CHUNK_SIZE_I32: i32 = 32;
 
 
 pub struct ChunkUniforms {
-    model_transform: [[f32; 4]; 4],
+    model_translation: [[f32; 4]; 4],
     model_rotation: [[f32; 4]; 4],
 }
 
@@ -88,19 +88,38 @@ impl ChunkMesh {
         surface: &mut S,
         shader: &Program,
         params: &DrawParameters,
-        worlduniforms: &WorldUniforms,
-        chunkuniforms: &ChunkUniforms,
+        world_uniforms: &WorldUniforms,
+        chunk_uniforms: &ChunkUniforms,
         camera: &Camera
     ) {
         match &self.mesh {
             Some(mesh) => {
+                let eq = |m: [[f32; 4]; 4]| m == [[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0]];
+
+                if eq(camera.get_perspective()) {
+                    println!("perspective is zero");
+                }
+                if eq(camera.get_view_rot()) {
+                    println!("view rot is zero");
+                }
+                if eq(camera.get_view_translation()) {
+                    println!("view trans is zero");
+                }
+                if eq(chunk_uniforms.model_rotation) {
+                    println!("model rot is zero");
+                }
+                if eq(chunk_uniforms.model_translation) {
+                    println!("model trans is zero");
+                }
+
                 let uniforms = uniform! {
-                    perspective: camera.get_perspective(),
-                    view_rotation: camera.get_view_rot(),
+                    projection: camera.get_perspective(),
                     view_translation: camera.get_view_translation(),
-                    model_matrix: chunkuniforms.model_transform,
-                    model_rotation: chunkuniforms.model_rotation,
-                    atlas: worlduniforms.texture_atlas
+                    view_rotation: camera.get_view_rot(),
+                    model_translation: chunk_uniforms.model_translation,
+                    model_rotation: chunk_uniforms.model_rotation,
+                    atlas: world_uniforms.texture_atlas,
+                    render_distance: world_uniforms.render_distance,
                 };
 
                 surface.draw(&mesh.vertices,
@@ -184,7 +203,7 @@ impl Chunk {
         }
     }
 
-    fn get_transform_matrix(&self) -> [[f32; 4]; 4] {
+    fn get_translation_matrix(&self) -> [[f32; 4]; 4] {
         [
             [1.0,                       0.0,                            0.0,                                 0.0],
             [0.0,                       1.0,                            0.0,                                 0.0],
@@ -204,7 +223,7 @@ impl Chunk {
 
     pub fn get_uniforms(&self) -> ChunkUniforms {
         ChunkUniforms {
-            model_transform: self.get_transform_matrix(),
+            model_translation: self.get_translation_matrix(),
             model_rotation: self.get_rotation_matrix(),
         }
     }

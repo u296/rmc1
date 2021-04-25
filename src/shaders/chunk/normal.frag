@@ -7,5 +7,5 @@ in vec3 v_local_pos;
 out vec4 f_color;
 
 void main() {
-    f_color = vec4(v_normal, 1.0);
+    f_color = vec4((v_normal + vec3(1,1,1))/2, 1.0);
 }
