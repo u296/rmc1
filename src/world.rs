@@ -1,26 +1,24 @@
 use std::fs;
 use std::path::Path;
 
-
-use crate::chunk::*;
 use crate::block::types::*;
-use crate::camera::{Camera};
+use crate::camera::Camera;
+use crate::chunk::*;
 use crate::graphics::*;
 use crate::terraingen::TerrainGenerator;
 
 use log::*;
 
-use glium::*;
-use glium::texture::*;
 use glium::index::PrimitiveType;
-use glium::uniforms::{MinifySamplerFilter, MagnifySamplerFilter};
+use glium::texture::*;
+use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
+use glium::*;
 
 #[derive(Debug, Clone, Copy)]
 struct SkyVertex {
-    position: [f32; 3]
+    position: [f32; 3],
 }
 implement_vertex!(SkyVertex, position);
-
 
 const SKY_SHADER_VERT: &'static str = include_str!("shaders/sky_shader.vert");
 const SKY_SHADER_FRAG: &'static str = include_str!("shaders/sky_shader.frag");
@@ -29,13 +27,11 @@ const CHUNK_COLOR_SHADER_FRAG: &'static str = include_str!("shaders/chunk/color.
 
 const TEXTURE_ATLAS: &'static [u8] = include_bytes!("../atlas.png");
 
-
-
 pub struct World {
     pub camera: Camera,
     pub chunks: Vec<Chunk>,
     chunk_meshes: Vec<[ChunkMesh; 2]>, // [0] is normal chunkmesh [1] is transparent chunkmesh
-    dirty_chunkmeshes: Vec<usize>, // indices of the chunkmeshes that need to be rebuilt
+    dirty_chunkmeshes: Vec<usize>,     // indices of the chunkmeshes that need to be rebuilt
 
     chunk_color_shader: Program,
 
@@ -47,39 +43,41 @@ pub struct World {
 impl World {
     fn create_sky_mesh(display: &Display) -> Mesh<SkyVertex> {
         let sky_verts_data = &[
-            SkyVertex {position: [-1.0, -1.0, -1.0]},
-            SkyVertex {position: [-1.0, -1.0,  1.0]},
-            SkyVertex {position: [-1.0,  1.0, -1.0]},
-            SkyVertex {position: [-1.0,  1.0,  1.0]},
-            SkyVertex {position: [ 1.0, -1.0, -1.0]},
-            SkyVertex {position: [ 1.0, -1.0,  1.0]},
-            SkyVertex {position: [ 1.0,  1.0, -1.0]},
-            SkyVertex {position: [ 1.0,  1.0,  1.0]},
+            SkyVertex {
+                position: [-1.0, -1.0, -1.0],
+            },
+            SkyVertex {
+                position: [-1.0, -1.0, 1.0],
+            },
+            SkyVertex {
+                position: [-1.0, 1.0, -1.0],
+            },
+            SkyVertex {
+                position: [-1.0, 1.0, 1.0],
+            },
+            SkyVertex {
+                position: [1.0, -1.0, -1.0],
+            },
+            SkyVertex {
+                position: [1.0, -1.0, 1.0],
+            },
+            SkyVertex {
+                position: [1.0, 1.0, -1.0],
+            },
+            SkyVertex {
+                position: [1.0, 1.0, 1.0],
+            },
         ];
 
         let sky_indices_data = &[
-            0u32,1,2,
-            2,3,1,
-
-            4,5,6,
-            5,6,7,
-
-            0,1,4,
-            4,5,1,
-
-            2,3,6,
-            6,7,3,
-
-            0,2,4,
-            4,6,2,
-
-            1,3,5,
-            5,7,3,
+            0u32, 1, 2, 2, 3, 1, 4, 5, 6, 5, 6, 7, 0, 1, 4, 4, 5, 1, 2, 3, 6, 6, 7, 3, 0, 2, 4, 4,
+            6, 2, 1, 3, 5, 5, 7, 3,
         ];
 
         Mesh {
             vertices: VertexBuffer::new(display, sky_verts_data).unwrap(),
-            indices: IndexBuffer::new(display, PrimitiveType::TrianglesList, sky_indices_data).unwrap(),
+            indices: IndexBuffer::new(display, PrimitiveType::TrianglesList, sky_indices_data)
+                .unwrap(),
         }
     }
 
@@ -104,7 +102,6 @@ impl World {
     }
 
     fn create_sky_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
-        
         Ok(program!(display,
             420 => {
                 vertex: &Self::shader_helper("shaders/sky_shader.vert", SKY_SHADER_VERT),
@@ -122,11 +119,20 @@ impl World {
         )?)
     }
 
-    fn create_texture_atlas(display: &Display) -> Result<CompressedSrgbTexture2d, Box<dyn std::error::Error>> {
-        let image = image::load(std::io::Cursor::new(&Self::texture_helper("atlas.png", TEXTURE_ATLAS)[..]), image::ImageFormat::Png)?.to_rgba8();
+    fn create_texture_atlas(
+        display: &Display,
+    ) -> Result<CompressedSrgbTexture2d, Box<dyn std::error::Error>> {
+        let image = image::load(
+            std::io::Cursor::new(&Self::texture_helper("atlas.png", TEXTURE_ATLAS)[..]),
+            image::ImageFormat::Png,
+        )?
+        .to_rgba8();
         let image_dimensions = image.dimensions();
-        let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
-        Ok(glium::texture::CompressedSrgbTexture2d::new(display, image)?)
+        let image =
+            glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
+        Ok(glium::texture::CompressedSrgbTexture2d::new(
+            display, image,
+        )?)
     }
 
     pub fn generate(
@@ -137,8 +143,7 @@ impl World {
     ) -> World {
         info!("generating world");
 
-        let mut heightmap: Vec<Vec<u32>>= vec![vec![0; depth]; width];
-        
+        let mut heightmap: Vec<Vec<u32>> = vec![vec![0; depth]; width];
 
         for (x, rows) in heightmap.iter_mut().enumerate() {
             for (z, height) in rows.iter_mut().enumerate() {
@@ -155,13 +160,11 @@ impl World {
         for chunk_x in 0..required_chunk_width {
             for chunk_z in 0..required_chunk_depth {
                 for chunk_y in 0..16 {
-
                     let mut blocktypes = Box::new([[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]);
 
                     for x in 0..CHUNK_SIZE {
                         for y in 0..CHUNK_SIZE {
                             for z in 0..CHUNK_SIZE {
-
                                 let global_height: u32 = (CHUNK_SIZE * chunk_y + y) as u32;
                                 let global_x = CHUNK_SIZE * chunk_x + x;
                                 let global_z = CHUNK_SIZE * chunk_z + z;
@@ -184,7 +187,7 @@ impl World {
                     trace!("creating chunk");
                     let chunk = Box::new(Chunk::from_blocktypes(
                         [chunk_x as i32, chunk_y as i32, chunk_z as i32],
-                        &blocktypes
+                        &blocktypes,
                     ));
 
                     trace!("pushing chunk");
@@ -203,7 +206,17 @@ impl World {
         info!("finished generating world");
 
         World {
-            camera: Camera::new(display, [(width / 2) as f32, heightmap[0][0] as f32, (depth / 2) as f32], [0.0, 0.0, 0.0], 90.0, 16.0/9.0),
+            camera: Camera::new(
+                display,
+                [
+                    (width / 2) as f32,
+                    heightmap[0][0] as f32,
+                    (depth / 2) as f32,
+                ],
+                [0.0, 0.0, 0.0],
+                90.0,
+                16.0 / 9.0,
+            ),
             chunks: chunks,
             chunk_meshes: chunkmeshes,
             dirty_chunkmeshes: dirty_chunkmeshes,
@@ -214,11 +227,12 @@ impl World {
         }
     }
 
-    
-
     pub fn flag_chunkmesh_dirty(&mut self, chunk_coords: [i32; 3]) {
-
-        let index = match self.chunks.iter().position(|c| c.coordinates == chunk_coords) {
+        let index = match self
+            .chunks
+            .iter()
+            .position(|c| c.coordinates == chunk_coords)
+        {
             Some(i) => i,
             None => {
                 warn!("tried to dirty a nonexistent chunkmesh");
@@ -229,7 +243,13 @@ impl World {
         self.dirty_chunkmeshes.push(index);
     }
 
-    fn regenerate_dirty_chunkmeshes(display: &Display, chunks: &[Chunk], chunk_meshes: &mut [[ChunkMesh; 2]], dirty_meshes: &mut Vec<usize>, max_regens: usize) {
+    fn regenerate_dirty_chunkmeshes(
+        display: &Display,
+        chunks: &[Chunk],
+        chunk_meshes: &mut [[ChunkMesh; 2]],
+        dirty_meshes: &mut Vec<usize>,
+        max_regens: usize,
+    ) {
         debug!("there are {} dirty meshes", dirty_meshes.len());
 
         let mut num_processed = 0;
@@ -245,7 +265,7 @@ impl World {
                 chunk_meshes[i][0] = chunk.generate_base_chunkmesh(display, neighbors);
                 chunk_meshes[i][1] = chunk.generate_transparent_chunkmesh(display, neighbors);
             }
-            
+
             dirty_meshes.remove(0);
         }
     }
@@ -253,42 +273,47 @@ impl World {
     pub fn update(&mut self, display: &Display, seconds: f32) {
         trace!("updating after {}s", seconds);
         //self.camera.update(seconds);
-        
+
         if !self.dirty_chunkmeshes.is_empty() {
-            Self::regenerate_dirty_chunkmeshes(display, &self.chunks, &mut self.chunk_meshes, &mut self.dirty_chunkmeshes, 2);
+            Self::regenerate_dirty_chunkmeshes(
+                display,
+                &self.chunks,
+                &mut self.chunk_meshes,
+                &mut self.dirty_chunkmeshes,
+                2,
+            );
         }
     }
 
     pub fn render(&mut self, frame: &mut impl Surface) {
-        
         let params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLessOrEqual,
                 write: true,
-                .. Default::default()
+                ..Default::default()
             },
             blend: Blend::alpha_blending(),
-            .. Default::default()
+            ..Default::default()
         };
 
         let color_only_overwrite_params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::Overwrite,
                 write: false,
-                .. Default::default()
+                ..Default::default()
             },
-            .. Default::default()
+            ..Default::default()
         };
 
         let transparent_params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLess,
-                write: false, // we don't want to prevent further away transparent surfaces 
+                write: false, // we don't want to prevent further away transparent surfaces
                 //from being drawn because a transparent surface is blocking the direct view
-                .. Default::default()
+                ..Default::default()
             },
             blend: Blend::alpha_blending(),
-            .. Default::default()
+            ..Default::default()
         };
 
         let sky_uniforms = uniform! {
@@ -296,16 +321,20 @@ impl World {
             projection: self.camera.get_perspective(),
         };
 
-        frame.draw(
-            &self.sky_mesh.vertices,
-            &self.sky_mesh.indices,
-            &self.sky_shader,
-            &sky_uniforms,
-            &color_only_overwrite_params
-        ).unwrap();
+        frame
+            .draw(
+                &self.sky_mesh.vertices,
+                &self.sky_mesh.indices,
+                &self.sky_shader,
+                &sky_uniforms,
+                &color_only_overwrite_params,
+            )
+            .unwrap();
 
         let worlduniforms = WorldUniforms {
-            texture_atlas: self.texture_atlas.sampled()
+            texture_atlas: self
+                .texture_atlas
+                .sampled()
                 .minify_filter(MinifySamplerFilter::Nearest)
                 .magnify_filter(MagnifySamplerFilter::Nearest),
             render_distance: crate::camera::CLIP_FAR,
@@ -318,7 +347,7 @@ impl World {
                 &params,
                 &worlduniforms,
                 &chunk.get_uniforms(),
-                &self.camera
+                &self.camera,
             );
         }
 
@@ -329,17 +358,14 @@ impl World {
                 &transparent_params,
                 &worlduniforms,
                 &chunk.get_uniforms(),
-                &self.camera
+                &self.camera,
             );
         }
-
 
         self.camera.draw_hud(frame);
     }
 
     pub fn reload_assets(&mut self, display: &Display) -> Result<(), Box<dyn std::error::Error>> {
-       
-
         self.chunk_color_shader = Self::create_chunk_color_shader(display)?;
         self.texture_atlas = Self::create_texture_atlas(display)?;
         self.sky_shader = Self::create_sky_shader(display)?;

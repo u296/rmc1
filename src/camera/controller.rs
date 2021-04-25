@@ -24,7 +24,7 @@ impl Controller {
         };
 
         if self.moving_up {
-            camera.position[1] +=  seconds * MOVESPEED;
+            camera.position[1] += seconds * MOVESPEED;
             camera.values.borrow_mut().dirty = true;
             trace!("moving up");
         }

@@ -1,6 +1,6 @@
-use noise::*;
 use noise::NoiseFn;
 use noise::Seedable;
+use noise::*;
 
 pub struct OpensimplexGenerator {
     noisegen: Perlin,
@@ -27,8 +27,10 @@ impl OpensimplexGenerator {
 
 impl super::TerrainGenerator for OpensimplexGenerator {
     fn get_height_at(&self, xz: (isize, isize)) -> usize {
-
-        let raw = self.noisegen.get([xz.0 as f64 * self.coord_scaling.0, xz.1 as f64 * self.coord_scaling.1]);
+        let raw = self.noisegen.get([
+            xz.0 as f64 * self.coord_scaling.0,
+            xz.1 as f64 * self.coord_scaling.1,
+        ]);
         let normalized = (raw + 1.0) / 2.0;
 
         let combined = self.offset + self.amplitude * normalized;

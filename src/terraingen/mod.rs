@@ -1,6 +1,5 @@
-
-pub mod opensimplex;
 pub mod flat;
+pub mod opensimplex;
 
 pub trait TerrainGenerator {
     //fn new(seed: Option<i64>) -> Self;

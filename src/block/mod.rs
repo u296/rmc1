@@ -1,4 +1,3 @@
-
 pub mod types;
 
 #[derive(Copy, Clone, Debug)]
@@ -35,9 +34,9 @@ pub struct Block {
 
 impl Block {
     pub fn new(chunk_offset: [u8; 3], block_type: &'static BlockType) -> Block {
-        Block{
+        Block {
             in_chunk_position: chunk_offset.clone(),
-            block_type: block_type
+            block_type: block_type,
         }
     }
 }

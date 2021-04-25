@@ -1,23 +1,19 @@
-
-
-
 use std::convert::TryInto;
 
 pub use crate::block::*;
 use crate::camera::Camera;
-use crate::graphics::{Vertex, WorldUniforms, Mesh};
+use crate::graphics::{Mesh, Vertex, WorldUniforms};
 
 #[allow(unused_imports)]
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
 
-use glium::{Display, Surface, Program, DrawParameters, uniform};
 use glium::index::PrimitiveType;
+use glium::{uniform, Display, DrawParameters, Program, Surface};
 
 pub const CHUNK_SIZE: usize = 32;
 pub const CHUNK_SIZE_I8: i8 = 32;
 pub const CHUNK_SIZE_U8: u8 = 32;
 pub const CHUNK_SIZE_I32: i32 = 32;
-
 
 pub struct ChunkUniforms {
     model_translation: [[f32; 4]; 4],
@@ -35,12 +31,12 @@ pub struct ChunkNeighbours<'a> {
 }
 
 pub fn get_chunk_neighbours<'a>(chunks: &'a [Chunk], coords: [i32; 3]) -> ChunkNeighbours<'a> {
-    let front_coords = [coords[0],     coords[1],     coords[2] + 1];
-    let back_coords  = [coords[0],     coords[1],     coords[2] - 1];
-    let right_coords = [coords[0] + 1, coords[1],     coords[2]];
-    let left_coords  = [coords[0] - 1, coords[1],     coords[2]];
-    let above_coords = [coords[0],     coords[1] + 1, coords[2]];
-    let below_coords = [coords[0],     coords[1] - 1, coords[2]];
+    let front_coords = [coords[0], coords[1], coords[2] + 1];
+    let back_coords = [coords[0], coords[1], coords[2] - 1];
+    let right_coords = [coords[0] + 1, coords[1], coords[2]];
+    let left_coords = [coords[0] - 1, coords[1], coords[2]];
+    let above_coords = [coords[0], coords[1] + 1, coords[2]];
+    let below_coords = [coords[0], coords[1] - 1, coords[2]];
 
     ChunkNeighbours {
         front: chunks.iter().find(|c| c.coordinates == front_coords),
@@ -54,19 +50,16 @@ pub fn get_chunk_neighbours<'a>(chunks: &'a [Chunk], coords: [i32; 3]) -> ChunkN
 
 impl<'a> ChunkNeighbours<'a> {
     pub fn is_complete(&self) -> bool {
-        self.front.is_some() &&
-        self.back.is_some() &&
-        self.right.is_some() &&
-        self.left.is_some() &&
-        self.above.is_some() &&
-        self.below.is_some()
+        self.front.is_some()
+            && self.back.is_some()
+            && self.right.is_some()
+            && self.left.is_some()
+            && self.above.is_some()
+            && self.below.is_some()
     }
 
     pub fn is_xz_complete(&self) -> bool {
-        self.front.is_some() &&
-        self.back.is_some() &&
-        self.right.is_some() &&
-        self.left.is_some()
+        self.front.is_some() && self.back.is_some() && self.right.is_some() && self.left.is_some()
     }
 }
 
@@ -79,7 +72,7 @@ impl ChunkMesh {
     pub fn ungenerated() -> Self {
         ChunkMesh {
             mesh: None,
-            dirty: true
+            dirty: true,
         }
     }
 
@@ -90,11 +83,18 @@ impl ChunkMesh {
         params: &DrawParameters,
         world_uniforms: &WorldUniforms,
         chunk_uniforms: &ChunkUniforms,
-        camera: &Camera
+        camera: &Camera,
     ) {
         match &self.mesh {
             Some(mesh) => {
-                let eq = |m: [[f32; 4]; 4]| m == [[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0]];
+                let eq = |m: [[f32; 4]; 4]| {
+                    m == [
+                        [0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0],
+                    ]
+                };
 
                 if eq(camera.get_perspective()) {
                     println!("perspective is zero");
@@ -122,14 +122,11 @@ impl ChunkMesh {
                     render_distance: world_uniforms.render_distance,
                 };
 
-                surface.draw(&mesh.vertices,
-                    &mesh.indices,
-                    &shader,
-                    &uniforms,
-                    &params
-                ).unwrap();
-            },
-            None => ()
+                surface
+                    .draw(&mesh.vertices, &mesh.indices, &shader, &uniforms, &params)
+                    .unwrap();
+            }
+            None => (),
         }
     }
 }
@@ -141,14 +138,17 @@ pub struct Chunk {
 
 impl Chunk {
     pub fn filled(coords: [i32; 3], block_type: &'static BlockType) -> Chunk {
-        
-        let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> = 
-            vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE].into_boxed_slice().try_into().unwrap();
+        let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> =
+            vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap();
 
         for x in 0..CHUNK_SIZE_U8 {
             for y in 0..CHUNK_SIZE_U8 {
                 for z in 0..CHUNK_SIZE_U8 {
-                    blocks[x as usize][y as usize][z as usize] = Some(Block::new([x, y, z], block_type));
+                    blocks[x as usize][y as usize][z as usize] =
+                        Some(Block::new([x, y, z], block_type));
                 }
             }
         }
@@ -159,17 +159,23 @@ impl Chunk {
         }
     }
 
-    pub fn from_blocktypes(coords: [i32; 3], blocktypes: &[[[Option<&'static BlockType>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]) -> Self {
+    pub fn from_blocktypes(
+        coords: [i32; 3],
+        blocktypes: &[[[Option<&'static BlockType>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE],
+    ) -> Self {
         trace!("allocating blocks");
-        let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> = 
-            vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE].into_boxed_slice().try_into().unwrap();
+        let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> =
+            vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap();
 
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
                     blocks[x][y][z] = match blocktypes[x][y][z] {
                         Some(blocktype) => Some(Block::new([x as u8, y as u8, z as u8], blocktype)),
-                        None => None
+                        None => None,
                     }
                 }
             }
@@ -178,16 +184,21 @@ impl Chunk {
         trace!("initializing chunk at {:?}", coords);
         Chunk {
             coordinates: coords,
-            blocks: blocks
+            blocks: blocks,
         }
     }
 
     fn get_translation_matrix(&self) -> [[f32; 4]; 4] {
         [
-            [1.0,                       0.0,                            0.0,                                 0.0],
-            [0.0,                       1.0,                            0.0,                                 0.0],
-            [0.0,                       0.0,                            1.0,                                 0.0],
-            [(self.coordinates[0]*CHUNK_SIZE_I32) as f32, (self.coordinates[1]*CHUNK_SIZE_I32) as f32, (self.coordinates[2]*CHUNK_SIZE_I32) as f32, 1.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [
+                (self.coordinates[0] * CHUNK_SIZE_I32) as f32,
+                (self.coordinates[1] * CHUNK_SIZE_I32) as f32,
+                (self.coordinates[2] * CHUNK_SIZE_I32) as f32,
+                1.0,
+            ],
         ]
     }
 
@@ -210,15 +221,15 @@ impl Chunk {
     fn get_block_neighbors(
         &self,
         block_position: [u8; 3],
-        chunk_neighbors: ChunkNeighbours) -> BlockNeighbors {
-
+        chunk_neighbors: ChunkNeighbours,
+    ) -> BlockNeighbors {
         let mut neighbors = BlockNeighbors {
             right: None,
             left: None,
             above: None,
             below: None,
             back: None,
-            front: None,    
+            front: None,
         };
 
         let right_block = (
@@ -236,7 +247,7 @@ impl Chunk {
         let top_block = (
             block_position[0] as i8,
             block_position[1] as i8 + 1,
-            block_position[2] as i8
+            block_position[2] as i8,
         );
 
         let below_block = (
@@ -261,47 +272,69 @@ impl Chunk {
         // the chunk itself, we can improve cache usage by
         // reading from self whenever possible
         let block_checker = |local_block_coord: (i8, i8, i8)| {
-            if 0 <= local_block_coord.0 && local_block_coord.0 < CHUNK_SIZE_I8 &&
-                0 <= local_block_coord.1 && local_block_coord.1 < CHUNK_SIZE_I8 &&
-                0 <= local_block_coord.2 && local_block_coord.2 < CHUNK_SIZE_I8 {
-                
-                self.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize][local_block_coord.2 as usize]
+            if 0 <= local_block_coord.0
+                && local_block_coord.0 < CHUNK_SIZE_I8
+                && 0 <= local_block_coord.1
+                && local_block_coord.1 < CHUNK_SIZE_I8
+                && 0 <= local_block_coord.2
+                && local_block_coord.2 < CHUNK_SIZE_I8
+            {
+                self.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize]
+                    [local_block_coord.2 as usize]
             } else {
                 if local_block_coord.0 < 0 {
                     return match chunk_neighbors.left {
-                        Some(left) => left.blocks[CHUNK_SIZE - 1][local_block_coord.1 as usize][local_block_coord.2 as usize],
-                        None => None
-                    }
+                        Some(left) => {
+                            left.blocks[CHUNK_SIZE - 1][local_block_coord.1 as usize]
+                                [local_block_coord.2 as usize]
+                        }
+                        None => None,
+                    };
                 }
                 if local_block_coord.0 >= CHUNK_SIZE_I8 {
                     return match chunk_neighbors.right {
-                        Some(right) => right.blocks[0][local_block_coord.1 as usize][local_block_coord.2 as usize],
-                        None => None
-                    }
+                        Some(right) => {
+                            right.blocks[0][local_block_coord.1 as usize]
+                                [local_block_coord.2 as usize]
+                        }
+                        None => None,
+                    };
                 }
                 if local_block_coord.1 < 0 {
                     return match chunk_neighbors.below {
-                        Some(below) => below.blocks[local_block_coord.0 as usize][CHUNK_SIZE - 1][local_block_coord.2 as usize],
-                        None => None
-                    }
+                        Some(below) => {
+                            below.blocks[local_block_coord.0 as usize][CHUNK_SIZE - 1]
+                                [local_block_coord.2 as usize]
+                        }
+                        None => None,
+                    };
                 }
                 if local_block_coord.1 >= CHUNK_SIZE_I8 {
                     return match chunk_neighbors.above {
-                        Some(above) => above.blocks[local_block_coord.0 as usize][0][local_block_coord.2 as usize],
-                        None => None
-                    }
+                        Some(above) => {
+                            above.blocks[local_block_coord.0 as usize][0]
+                                [local_block_coord.2 as usize]
+                        }
+                        None => None,
+                    };
                 }
                 if local_block_coord.2 < 0 {
                     return match chunk_neighbors.back {
-                        Some(back) => back.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize][CHUNK_SIZE - 1],
-                        None => None
-                    }
+                        Some(back) => {
+                            back.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize]
+                                [CHUNK_SIZE - 1]
+                        }
+                        None => None,
+                    };
                 }
                 if local_block_coord.2 >= CHUNK_SIZE_I8 {
                     return match chunk_neighbors.front {
-                        Some(front) => front.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize][0],
-                        None => None
-                    }
+                        Some(front) => {
+                            front.blocks[local_block_coord.0 as usize][local_block_coord.1 as usize]
+                                [0]
+                        }
+                        None => None,
+                    };
                 }
 
                 panic!()
@@ -319,12 +352,20 @@ impl Chunk {
     }
 
     pub fn get_block(&self, coords: [u8; 3]) -> &Option<Block> {
-        trace!("getting block at {:?} in chunk {:?}", coords, self.coordinates);
+        trace!(
+            "getting block at {:?} in chunk {:?}",
+            coords,
+            self.coordinates
+        );
         &self.blocks[coords[0] as usize][coords[1] as usize][coords[2] as usize]
     }
 
     pub fn get_block_mut(&mut self, coords: [u8; 3]) -> &mut Option<Block> {
-        trace!("getting block at {:?} in chunk {:?} as mut", coords, self.coordinates);
+        trace!(
+            "getting block at {:?} in chunk {:?} as mut",
+            coords,
+            self.coordinates
+        );
         &mut self.blocks[coords[0] as usize][coords[1] as usize][coords[2] as usize]
     }
 
@@ -339,7 +380,7 @@ impl Chunk {
                     } else {
                         true
                     }
-                },
+                }
                 false => {
                     if current.block_type.transparent {
                         false
@@ -354,17 +395,18 @@ impl Chunk {
     pub fn generate_base_chunkmesh(
         &self,
         display: &Display,
-        chunk_neighbors: ChunkNeighbours) -> ChunkMesh {
+        chunk_neighbors: ChunkNeighbours,
+    ) -> ChunkMesh {
         self.generate_chunkmesh(display, |t| !t.transparent, chunk_neighbors)
     }
 
     pub fn generate_transparent_chunkmesh(
         &self,
         display: &Display,
-        chunk_neighbors: ChunkNeighbours) -> ChunkMesh {
+        chunk_neighbors: ChunkNeighbours,
+    ) -> ChunkMesh {
         self.generate_chunkmesh(display, |t| t.transparent, chunk_neighbors)
     }
-    
 
     // block_includer should return true when
     // a block should be included in the mesh
@@ -372,12 +414,10 @@ impl Chunk {
         &self,
         display: &glium::Display,
         block_includer: F,
-        chunk_neighbors: ChunkNeighbours) -> ChunkMesh {
-
+        chunk_neighbors: ChunkNeighbours,
+    ) -> ChunkMesh {
         let mut verts: Vec<Vertex> = vec![];
         let mut indices: Vec<u32> = vec![];
-
-        
 
         for i in self.blocks.iter() {
             for j in i.iter() {
@@ -386,15 +426,13 @@ impl Chunk {
                         None => continue,
                         Some(block) => {
                             if !block_includer(block.block_type) {
-                                continue
+                                continue;
                             }
-                            
-                            let base_indices = &[
-                                0u32,1,2,
-                                2,3,1,
-                            ];
-                            
-                            let neighbors = self.get_block_neighbors(block.in_chunk_position, chunk_neighbors);
+
+                            let base_indices = &[0u32, 1, 2, 2, 3, 1];
+
+                            let neighbors =
+                                self.get_block_neighbors(block.in_chunk_position, chunk_neighbors);
 
                             let uv = block.block_type.uv;
                             if Self::add_face(&block, &neighbors.right) {
@@ -404,19 +442,34 @@ impl Chunk {
 
                                 let n = [1.0, 0.0, 0.0];
                                 let uv = uv.right;
-                                
+
                                 let face_verts = &[
-                                    Vertex{ position: [xcoord, ybase,       zbase],       uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase + 1.0, zbase],       uv: [uv.1[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase,       zbase + 1.0], uv: [uv.0[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase + 1.0, zbase + 1.0], uv: [uv.0[0], uv.1[1]], normal: n},
+                                    Vertex {
+                                        position: [xcoord, ybase, zbase],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase + 1.0, zbase],
+                                        uv: [uv.1[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase, zbase + 1.0],
+                                        uv: [uv.0[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase + 1.0, zbase + 1.0],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
                                 ];
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -430,17 +483,32 @@ impl Chunk {
                                 let uv = uv.left;
 
                                 let face_verts = &[
-                                    Vertex{ position: [xcoord, ybase,       zbase],       uv: [uv.0[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase + 1.0, zbase],       uv: [uv.0[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase,       zbase + 1.0], uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xcoord, ybase + 1.0, zbase + 1.0], uv: [uv.1[0], uv.1[1]], normal: n},
+                                    Vertex {
+                                        position: [xcoord, ybase, zbase],
+                                        uv: [uv.0[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase + 1.0, zbase],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase, zbase + 1.0],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xcoord, ybase + 1.0, zbase + 1.0],
+                                        uv: [uv.1[0], uv.1[1]],
+                                        normal: n,
+                                    },
                                 ];
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -454,17 +522,32 @@ impl Chunk {
                                 let uv = uv.top;
 
                                 let face_verts = &[
-                                    Vertex{ position: [xbase,       ycoord, zbase],       uv: uv.0,               normal: n},
-                                    Vertex{ position: [xbase + 1.0, ycoord, zbase],       uv: [uv.0[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xbase,       ycoord, zbase + 1.0], uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xbase + 1.0, ycoord, zbase + 1.0], uv: uv.1,               normal: n},
+                                    Vertex {
+                                        position: [xbase, ycoord, zbase],
+                                        uv: uv.0,
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ycoord, zbase],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase, ycoord, zbase + 1.0],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ycoord, zbase + 1.0],
+                                        uv: uv.1,
+                                        normal: n,
+                                    },
                                 ];
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -478,17 +561,32 @@ impl Chunk {
                                 let uv = uv.bottom;
 
                                 let face_verts = &[
-                                    Vertex{ position: [xbase,       ycoord, zbase],       uv: uv.0,               normal: n},
-                                    Vertex{ position: [xbase + 1.0, ycoord, zbase],       uv: [uv.0[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xbase,       ycoord, zbase + 1.0], uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xbase + 1.0, ycoord, zbase + 1.0], uv: uv.1,               normal: n},
+                                    Vertex {
+                                        position: [xbase, ycoord, zbase],
+                                        uv: uv.0,
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ycoord, zbase],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase, ycoord, zbase + 1.0],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ycoord, zbase + 1.0],
+                                        uv: uv.1,
+                                        normal: n,
+                                    },
                                 ];
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -502,18 +600,32 @@ impl Chunk {
                                 let uv = uv.front;
 
                                 let face_verts = &[
-                                    Vertex{ position: [xbase,       ybase, zcoord],       uv: uv.0,               normal: n},
-                                    Vertex{ position: [xbase + 1.0, ybase, zcoord],       uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xbase,       ybase + 1.0, zcoord], uv: [uv.0[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xbase + 1.0, ybase + 1.0, zcoord], uv: uv.1,               normal: n},
+                                    Vertex {
+                                        position: [xbase, ybase, zcoord],
+                                        uv: uv.0,
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ybase, zcoord],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase, ybase + 1.0, zcoord],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ybase + 1.0, zcoord],
+                                        uv: uv.1,
+                                        normal: n,
+                                    },
                                 ];
-
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -527,17 +639,32 @@ impl Chunk {
                                 let uv = uv.back;
 
                                 let face_verts = &[
-                                    Vertex{ position: [xbase,       ybase,       zcoord], uv: [uv.1[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xbase + 1.0, ybase,       zcoord], uv: [uv.0[0], uv.0[1]], normal: n},
-                                    Vertex{ position: [xbase,       ybase + 1.0, zcoord], uv: [uv.1[0], uv.1[1]], normal: n},
-                                    Vertex{ position: [xbase + 1.0, ybase + 1.0, zcoord], uv: [uv.0[0], uv.1[1]], normal: n},
+                                    Vertex {
+                                        position: [xbase, ybase, zcoord],
+                                        uv: [uv.1[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ybase, zcoord],
+                                        uv: [uv.0[0], uv.0[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase, ybase + 1.0, zcoord],
+                                        uv: [uv.1[0], uv.1[1]],
+                                        normal: n,
+                                    },
+                                    Vertex {
+                                        position: [xbase + 1.0, ybase + 1.0, zcoord],
+                                        uv: [uv.0[0], uv.1[1]],
+                                        normal: n,
+                                    },
                                 ];
 
                                 let offset: u32 = verts.len().try_into().unwrap();
 
-                                let face_indices = base_indices.iter()
-                                    .map(|i| i + offset);
-                                
+                                let face_indices = base_indices.iter().map(|i| i + offset);
+
                                 verts.extend_from_slice(face_verts);
                                 indices.extend(face_indices);
                             }
@@ -554,15 +681,18 @@ impl Chunk {
                 dirty: false,
             }
         } else {
-            let verts = glium::vertex::VertexBuffer::new(display, &verts).expect("failed to create vertex buffer");
-            let indices = glium::index::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).expect("failed to create index buffer");
+            let verts = glium::vertex::VertexBuffer::new(display, &verts)
+                .expect("failed to create vertex buffer");
+            let indices =
+                glium::index::IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices)
+                    .expect("failed to create index buffer");
 
             ChunkMesh {
                 mesh: Some(Mesh {
                     vertices: verts,
-                    indices: indices
+                    indices: indices,
                 }),
-                dirty: false
+                dirty: false,
             }
         }
     }
@@ -585,7 +715,10 @@ impl Chunk {
         (chunk, inchunk)
     }
 
-    pub fn get_global_coords_from_local_coord<B: Into<i32> + Copy>(chunk: [i32; 3], block: [B; 3]) -> [i32; 3] {
+    pub fn get_global_coords_from_local_coord<B: Into<i32> + Copy>(
+        chunk: [i32; 3],
+        block: [B; 3],
+    ) -> [i32; 3] {
         [
             chunk[0] * CHUNK_SIZE_I32 + block[0].into(),
             chunk[1] * CHUNK_SIZE_I32 + block[1].into(),

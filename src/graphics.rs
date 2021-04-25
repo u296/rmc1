@@ -1,8 +1,8 @@
 use glium::implement_vertex;
 use glium::index::*;
-use glium::vertex::*;
 use glium::texture::*;
 use glium::uniforms::Sampler;
+use glium::vertex::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {
@@ -13,7 +13,7 @@ pub struct Vertex {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex2d {
-    pub position: [f32; 2]
+    pub position: [f32; 2],
 }
 
 implement_vertex!(Vertex, position, uv, normal);
@@ -21,9 +21,8 @@ implement_vertex!(Vertex2d, position);
 
 pub struct Mesh<V: Copy> {
     pub vertices: VertexBuffer<V>,
-    pub indices: IndexBuffer<u32>
+    pub indices: IndexBuffer<u32>,
 }
-
 
 /// uniforms that are shared by multiple chunks
 #[derive(Clone, Copy)]

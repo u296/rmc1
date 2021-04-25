@@ -1,13 +1,10 @@
-
 pub struct FlatGenerator {
     height: usize,
 }
 
 impl FlatGenerator {
     pub fn new(height: usize) -> Self {
-        FlatGenerator {
-            height: height
-        }
+        FlatGenerator { height: height }
     }
 }
 
