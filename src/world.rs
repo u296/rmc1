@@ -30,10 +30,6 @@ const SKY_SHADER_VERT: &'static str = include_str!("shaders/sky_shader.vert");
 const SKY_SHADER_FRAG: &'static str = include_str!("shaders/sky_shader.frag");
 const CHUNK_SHADER_VERT: &'static str = include_str!("shaders/chunk/vertex.vert");
 const CHUNK_COLOR_SHADER_FRAG: &'static str = include_str!("shaders/chunk/color.frag");
-const CHUNK_DEPTH_SHADER_FRAG: &'static str = include_str!("shaders/chunk/depth.frag");
-const CHUNK_NORMAL_SHADER_FRAG: &'static str = include_str!("shaders/chunk/normal.frag");
-const CHUNK_FBQUAD_SHADER_VERT: &'static str = include_str!("shaders/fbquad.vert");
-const CHUNK_DEFERRED_SHADER_FRAG: &'static str = include_str!("shaders/chunk/deferred.frag");
 
 const TEXTURE_ATLAS: &'static [u8] = include_bytes!("../atlas.png");
 
@@ -43,21 +39,13 @@ pub struct World {
     pub camera: Camera,
     pub chunks: Vec<Chunk>,
     chunk_meshes: Vec<[ChunkMesh; 2]>, // [0] is normal chunkmesh [1] is transparent chunkmesh
-    dirty_chunkmeshes: Vec<usize>,
+    dirty_chunkmeshes: Vec<usize>, // indices of the chunkmeshes that need to be rebuilt
 
     chunk_color_shader: Program,
-
-    chunk_depth_shader: Program,
-    chunk_normal_shader: Program,
-    chunk_deferred_shader: Program,
 
     texture_atlas: CompressedSrgbTexture2d,
     sky_shader: Program,
     sky_mesh: Mesh<SkyVertex>,
-
-    wrb: WorldRenderData,
-
-    fbquad_mesh: Mesh<Vertex2d>
 }
 
 impl World {
@@ -136,54 +124,6 @@ impl World {
                 fragment: &Self::shader_helper("shaders/chunk/color.frag", CHUNK_COLOR_SHADER_FRAG)
             }
         )?)
-    }
-
-    fn create_chunk_depth_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
-        Ok(program! (display,
-            420 => {
-                vertex: &Self::shader_helper("shaders/chunk/vertex.vert", CHUNK_SHADER_VERT),
-                fragment: &Self::shader_helper("shaders/chunk/depth.frag", CHUNK_DEPTH_SHADER_FRAG)
-            }
-        )?)
-    }
-
-    fn create_chunk_normal_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
-        Ok(program! (display,
-            420 => {
-                vertex: &Self::shader_helper("shaders/chunk/vertex.vert", CHUNK_SHADER_VERT),
-                fragment: &Self::shader_helper("shaders/chunk/normal.frag", CHUNK_NORMAL_SHADER_FRAG)
-            }
-        )?)
-    }
-
-    fn create_chunk_deferred_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
-        Ok(program!(display,
-            420 => {
-                vertex: &Self::shader_helper("shaders/fbquad.vert", CHUNK_FBQUAD_SHADER_VERT),
-                fragment: &Self::shader_helper("shaders/chunk/deferred.frag", CHUNK_DEFERRED_SHADER_FRAG)
-            }
-        )?)
-    }
-
-    fn create_fbquad(display: &Display) -> Mesh<Vertex2d> {
-        
-        let fbquad_verts_data = &[
-            Vertex2d{ position: [-1.0, -1.0]},
-            Vertex2d{ position: [ 1.0, -1.0]},
-            Vertex2d{ position: [-1.0,  1.0]},
-            Vertex2d{ position: [ 1.0,  1.0]},
-        ];
-    
-        let fbquad_indices_data = &[
-            0, 1, 2,
-            1, 2, 3
-        ];
-        
-        Mesh {
-            vertices: VertexBuffer::new(display, fbquad_verts_data).unwrap(),
-            indices: IndexBuffer::new(display, PrimitiveType::TrianglesList, fbquad_indices_data).unwrap(),
-        }
-        
     }
 
     fn create_texture_atlas(display: &Display) -> Result<CompressedSrgbTexture2d, Box<dyn std::error::Error>> {
@@ -276,14 +216,9 @@ impl World {
             chunk_meshes: chunkmeshes,
             dirty_chunkmeshes: dirty_chunkmeshes,
             chunk_color_shader: Self::create_chunk_color_shader(display).unwrap(),
-            chunk_depth_shader: Self::create_chunk_depth_shader(display).unwrap(),
-            chunk_normal_shader: Self::create_chunk_normal_shader(display).unwrap(),
-            chunk_deferred_shader: Self::create_chunk_deferred_shader(display).unwrap(),
             texture_atlas: Self::create_texture_atlas(display).unwrap(),
             sky_shader: Self::create_sky_shader(display).unwrap(),
             sky_mesh: Self::create_sky_mesh(display),
-            wrb: WorldRenderData::new(display),
-            fbquad_mesh: Self::create_fbquad(display),
         }
     }
 
@@ -333,14 +268,7 @@ impl World {
     }
 
     pub fn render(&mut self, display: &Display, frame: &mut impl Surface) {
-        let mut color_fb = self.wrb.create_color_framebuffer(display);
-        let mut depth_fb = self.wrb.create_depth_framebuffer(display);
-        let mut normal_fb = self.wrb.create_normal_framebuffer(display);
-
-        color_fb.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-        depth_fb.clear_color_and_depth((1.0, 1.0, 1.0, 0.0), 1.0);
-        normal_fb.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-
+        
         let params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLessOrEqual,
@@ -393,26 +321,8 @@ impl World {
 
         for (chunk, chunk_mesh) in self.chunks.iter().zip(self.chunk_meshes.iter()) {
             chunk_mesh[0].render(
-                &mut color_fb,
+                frame,
                 &self.chunk_color_shader,
-                &params,
-                &worlduniforms,
-                &chunk.get_uniforms(),
-                &self.camera
-            );
-
-            chunk_mesh[0].render(
-                &mut depth_fb,
-                &self.chunk_depth_shader,
-                &params,
-                &worlduniforms,
-                &chunk.get_uniforms(),
-                &self.camera
-            );
-
-            chunk_mesh[0].render(
-                &mut normal_fb,
-                &self.chunk_normal_shader,
                 &params,
                 &worlduniforms,
                 &chunk.get_uniforms(),
@@ -421,28 +331,9 @@ impl World {
         }
 
         for (chunk, chunk_mesh) in self.chunks.iter().zip(self.chunk_meshes.iter()) {
-
             chunk_mesh[1].render(
-                &mut color_fb,
+                frame,
                 &self.chunk_color_shader,
-                &transparent_params,
-                &worlduniforms,
-                &chunk.get_uniforms(),
-                &self.camera
-            );
-
-            chunk_mesh[1].render(
-                &mut depth_fb,
-                &self.chunk_depth_shader,
-                &transparent_params,
-                &worlduniforms,
-                &chunk.get_uniforms(),
-                &self.camera
-            );
-
-            chunk_mesh[1].render(
-                &mut normal_fb,
-                &self.chunk_normal_shader,
                 &transparent_params,
                 &worlduniforms,
                 &chunk.get_uniforms(),
@@ -450,36 +341,14 @@ impl World {
             );
         }
 
-        let deferred_uniforms = uniform!{
-            color: self.wrb.frag_colors.sampled(),
-            depth: self.wrb.frag_depths.sampled(),
-            normal: self.wrb.frag_normals.sampled(),
-        };
-
-        frame.draw(
-            &self.fbquad_mesh.vertices,
-            &self.fbquad_mesh.indices,
-            &self.chunk_deferred_shader,
-            &deferred_uniforms,
-            &params
-        ).unwrap();
 
         self.camera.draw_hud(frame);
-    }
-
-    pub fn remake_fb_textures(&mut self, display: &Display) {
-        self.wrb.remake(display);
     }
 
     pub fn reload_assets(&mut self, display: &Display) -> Result<(), Box<dyn std::error::Error>> {
        
 
         self.chunk_color_shader = Self::create_chunk_color_shader(display)?;
-
-        self.chunk_depth_shader = Self::create_chunk_depth_shader(display)?;
-        self.chunk_normal_shader = Self::create_chunk_normal_shader(display)?;
-        self.chunk_deferred_shader = Self::create_chunk_deferred_shader(display)?;
-
         self.texture_atlas = Self::create_texture_atlas(display)?;
         self.sky_shader = Self::create_sky_shader(display)?;
 

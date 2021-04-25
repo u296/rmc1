@@ -140,8 +140,8 @@ fn main() {
             glutin::event::Event::WindowEvent { event, .. } => match event {
                 // Break from the main loop when the window is closed.
                 glutin::event::WindowEvent::CloseRequested => *control_flow = glutin::event_loop::ControlFlow::Exit,
-                glutin::event::WindowEvent::Resized(s) => {
-                    world.borrow_mut().remake_fb_textures(&display);
+                glutin::event::WindowEvent::Resized(_) => {
+                    render = true;
                 }
                 _ => (),
             },
