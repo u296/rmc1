@@ -159,27 +159,6 @@ impl Chunk {
         }
     }
 
-    pub fn layered(coords: [i32; 3], layers: &[Option<&'static BlockType>; CHUNK_SIZE]) -> Chunk {
-        let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> = 
-            vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE].into_boxed_slice().try_into().unwrap();
-
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
-                for z in 0..CHUNK_SIZE {
-                    blocks[x][y][z] = match layers[y] {
-                        Some(blocktype) => Some(Block::new([x as u8, y as u8, z as u8], blocktype)),
-                        None => None
-                    };
-                }
-            }
-        }
-
-        Chunk {
-            coordinates: coords,
-            blocks: blocks,
-        }
-    }
-
     pub fn from_blocktypes(coords: [i32; 3], blocktypes: &[[[Option<&'static BlockType>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]) -> Self {
         trace!("allocating blocks");
         let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> = 

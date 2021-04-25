@@ -168,7 +168,7 @@ impl InputHandler {
                                 *block = Some(Block::new(block_coordinates, &GLASS_BLOCK));
                                 Self::invalidate_block_chunkmeshes(&mut world, place_location);
                             },
-                            None => () // too bad, the chunk doesn't exist
+                            None => () // the chunk doesn't exist
                         }
                     }
                 }

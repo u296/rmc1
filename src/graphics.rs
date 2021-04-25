@@ -3,8 +3,6 @@ use glium::index::*;
 use glium::vertex::*;
 use glium::texture::*;
 use glium::uniforms::Sampler;
-use glium::framebuffer::*;
-use glium::Display;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {

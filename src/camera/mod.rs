@@ -4,7 +4,7 @@ mod hud;
 
 use std::cell::RefCell;
 
-use glium::{Display, Frame, Surface};
+use glium::{Display, Surface};
 
 use hud::Hud;
 

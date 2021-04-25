@@ -15,27 +15,13 @@ use log::*;
 use glium::{
     glutin,
     Surface,
-    Display,
     Frame,
-    Program,
-    DrawParameters,
-    VertexBuffer,
-    IndexBuffer,
-    index,
-    uniforms,
-    framebuffer,
-    texture,
     implement_vertex,
-    uniform, program
 };
-use texture::{Texture2d, SrgbTexture2d, DepthTexture2d, DepthFormat, UncompressedFloatFormat};
-use framebuffer::{SimpleFrameBuffer, DepthRenderBuffer};
-use index::PrimitiveType;
-use uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler};
-use glutin::event::{self, Event, WindowEvent};
+
+use glutin::event::{Event};
 
 use world::World;
-use graphics::*;
 
 #[derive(Clone, Copy, Debug)]
 struct FbVert {
@@ -45,14 +31,13 @@ struct FbVert {
 implement_vertex!(FbVert, position);
 
 fn draw(
-    display: &Display,
     mut frame: Frame,
     world: &mut World,
     ) -> Result<(), glium::SwapBuffersError> {
 
     frame.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
     
-    world.render(display, &mut frame);
+    world.render(&mut frame);
 
     frame.finish()
 }
@@ -159,7 +144,6 @@ fn main() {
 
 
             draw(
-                &display,
                 display.draw(),
                 &mut world.borrow_mut(),
             ).unwrap();

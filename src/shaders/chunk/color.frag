@@ -11,9 +11,6 @@ in vec3 v_local_pos;
 out vec4 f_color;
 
 void main() {
-
-    
-
     vec4 basecolor = texture(atlas, v_texcoord);
     f_color = basecolor;
 }

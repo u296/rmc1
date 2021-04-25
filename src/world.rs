@@ -1,6 +1,3 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::io;
 use std::fs;
 use std::path::Path;
 
@@ -16,8 +13,7 @@ use log::*;
 use glium::*;
 use glium::texture::*;
 use glium::index::PrimitiveType;
-use glium::uniforms::{Sampler, MinifySamplerFilter, MagnifySamplerFilter};
-use glium::framebuffer::*;
+use glium::uniforms::{MinifySamplerFilter, MagnifySamplerFilter};
 
 #[derive(Debug, Clone, Copy)]
 struct SkyVertex {
@@ -206,10 +202,6 @@ impl World {
 
         info!("finished generating world");
 
-
-        let window_size = display.gl_window().window().inner_size();
-
-
         World {
             camera: Camera::new(display, [(width / 2) as f32, heightmap[0][0] as f32, (depth / 2) as f32], [0.0, 0.0, 0.0], 90.0, 16.0/9.0),
             chunks: chunks,
@@ -267,7 +259,7 @@ impl World {
         }
     }
 
-    pub fn render(&mut self, display: &Display, frame: &mut impl Surface) {
+    pub fn render(&mut self, frame: &mut impl Surface) {
         
         let params = glium::DrawParameters {
             depth: glium::Depth {

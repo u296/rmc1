@@ -1,6 +1,6 @@
-use glium::{Display, Frame, Surface, VertexBuffer, IndexBuffer, Program, DrawParameters};
+use glium::{Display, Surface, VertexBuffer, IndexBuffer, Program, DrawParameters};
 use glium::index::PrimitiveType;
-use glium::{BlendingFunction, Blend, LinearBlendingFactor};
+use glium::Blend;
 use glium::implement_vertex;
 use glium::program;
 use glium::uniform;
