@@ -12,13 +12,14 @@ use glium::Display;
 use glutin::window::Window;
 
 use crate::block::{types::*, Block};
-use crate::camera;
+use crate::camera::{self, Camera};
 use crate::chunk::{Chunk, CHUNK_SIZE_U8};
 use crate::world::World;
 
 mod raycast;
 
-const MOUSE_SENSITIVITY: f64 = 0.07;
+// how many turns a single pixel of movement corresponds to
+const MOUSE_SENSITIVITY: f64 = 0.0001;
 
 const FORWARD_KEY: VirtualKeyCode = VirtualKeyCode::Comma;
 const LEFT_KEY: VirtualKeyCode = VirtualKeyCode::A;
@@ -114,12 +115,10 @@ impl InputHandler {
         if self.capturing_mouse {
             let mut world = self.world.borrow_mut();
 
-            world
-                .camera
-                .rotate_yaw(-(delta.0 * MOUSE_SENSITIVITY) as f32);
-            world
-                .camera
-                .rotate_pitch(-(delta.1 * MOUSE_SENSITIVITY) as f32);
+            let cam_rot = world.camera.get_rotation_mut();
+
+            cam_rot[0] += (MOUSE_SENSITIVITY * delta.0) as f32;
+            cam_rot[1] += (MOUSE_SENSITIVITY * delta.1) as f32;
         }
         None
     }
@@ -152,8 +151,8 @@ impl InputHandler {
             if *button == MouseButton::Left && *state == ElementState::Pressed {
                 match raycast::raycast(
                     block_occupation_checker,
-                    world.camera.get_position(),
-                    world.camera.get_view_dir(),
+                    *world.camera.get_position(),
+                    world.camera.get_forward_direction(),
                     6.0,
                 ) {
                     Some(coordinates) => {
@@ -178,8 +177,8 @@ impl InputHandler {
             } else if *button == MouseButton::Right && *state == ElementState::Pressed {
                 let (hit_block, path) = raycast::raycast_path(
                     block_occupation_checker,
-                    world.camera.get_position(),
-                    world.camera.get_view_dir(),
+                    *world.camera.get_position(),
+                    world.camera.get_forward_direction(),
                     6.0,
                 );
 
@@ -212,9 +211,8 @@ impl InputHandler {
 
     fn handle_window_resize(&mut self, newsize: (u32, u32)) -> Option<ControlFlow> {
         let mut world = self.world.borrow_mut();
-        world
-            .camera
-            .set_aspect_ratio(newsize.0 as f32 / newsize.1 as f32);
+        debug!("window resized: {:?}", newsize);
+        *world.camera.get_aspect_ratio_mut() = newsize.0 as f32 / newsize.1 as f32;
         None
     }
 

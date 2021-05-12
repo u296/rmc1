@@ -1,6 +1,6 @@
 use log::trace;
 
-use crate::camera::FirstPersonCamera;
+use crate::camera::Camera;
 
 const MOVESPEED: f32 = 10.0;
 
@@ -14,56 +14,52 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn update_camera(&self, camera: &mut FirstPersonCamera, seconds: f32) {
-        let forward = camera.get_view_dir();
-        let right = camera.get_right_dir();
+    pub fn update_camera(&self, camera: &mut dyn Camera, seconds: f32) {
+        let forward = camera.get_forward_direction();
+        let right = camera.get_right_direction();
 
         let right = {
             let len = (right[0].powi(2) + right[1].powi(2) + right[2].powi(2)).sqrt();
             [right[0] / len, right[1] / len, right[2] / len]
         };
 
+        let cam_pos = camera.get_position_mut();
+
         if self.moving_up {
-            camera.position[1] += seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[1] += seconds * MOVESPEED;
             trace!("moving up");
         }
 
         if self.moving_down {
-            camera.position[1] -= seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[1] -= seconds * MOVESPEED;
         }
 
         if self.moving_left {
-            camera.position[0] -= right[0] * seconds * MOVESPEED;
-            camera.position[1] -= right[1] * seconds * MOVESPEED;
-            camera.position[2] -= right[2] * seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[0] -= right[0] * seconds * MOVESPEED;
+            cam_pos[1] -= right[1] * seconds * MOVESPEED;
+            cam_pos[2] -= right[2] * seconds * MOVESPEED;
         }
 
         if self.moving_right {
-            camera.position[0] += right[0] * seconds * MOVESPEED;
-            camera.position[1] += right[1] * seconds * MOVESPEED;
-            camera.position[2] += right[2] * seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[0] += right[0] * seconds * MOVESPEED;
+            cam_pos[1] += right[1] * seconds * MOVESPEED;
+            cam_pos[2] += right[2] * seconds * MOVESPEED;
         }
 
         if self.moving_forward {
-            camera.position[0] += forward[0] * seconds * MOVESPEED;
-            camera.position[1] += forward[1] * seconds * MOVESPEED;
-            camera.position[2] += forward[2] * seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[0] += forward[0] * seconds * MOVESPEED;
+            cam_pos[1] += forward[1] * seconds * MOVESPEED;
+            cam_pos[2] += forward[2] * seconds * MOVESPEED;
         }
 
         if self.moving_back {
-            camera.position[0] -= forward[0] * seconds * MOVESPEED;
-            camera.position[1] -= forward[1] * seconds * MOVESPEED;
-            camera.position[2] -= forward[2] * seconds * MOVESPEED;
-            camera.values.borrow_mut().dirty = true;
+            cam_pos[0] -= forward[0] * seconds * MOVESPEED;
+            cam_pos[1] -= forward[1] * seconds * MOVESPEED;
+            cam_pos[2] -= forward[2] * seconds * MOVESPEED;
         }
 
         trace!("forward: {:?}", forward);
-        trace!("position: {:?}", camera.position)
+        trace!("position: {:?}", cam_pos)
     }
 }
 

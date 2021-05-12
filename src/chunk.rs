@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 pub use crate::block::*;
-use crate::camera::FirstPersonCamera;
+use crate::camera::Camera;
 use crate::graphics::{Mesh, Vertex, WorldUniforms};
 
 #[allow(unused_imports)]
@@ -49,14 +49,14 @@ pub fn get_chunk_neighbours<'a>(chunks: &'a [Chunk], coords: [i32; 3]) -> ChunkN
 }
 
 impl<'a> ChunkNeighbours<'a> {
-    pub fn is_complete(&self) -> bool {
+    /*pub fn is_complete(&self) -> bool {
         self.front.is_some()
             && self.back.is_some()
             && self.right.is_some()
             && self.left.is_some()
             && self.above.is_some()
             && self.below.is_some()
-    }
+    }*/
 
     pub fn is_xz_complete(&self) -> bool {
         self.front.is_some() && self.back.is_some() && self.right.is_some() && self.left.is_some()
@@ -83,39 +83,14 @@ impl ChunkMesh {
         params: &DrawParameters,
         world_uniforms: &WorldUniforms,
         chunk_uniforms: &ChunkUniforms,
-        camera: &FirstPersonCamera,
+        camera: &dyn Camera,
     ) {
         match &self.mesh {
             Some(mesh) => {
-                let eq = |m: [[f32; 4]; 4]| {
-                    m == [
-                        [0.0, 0.0, 0.0, 0.0],
-                        [0.0, 0.0, 0.0, 0.0],
-                        [0.0, 0.0, 0.0, 0.0],
-                        [0.0, 0.0, 0.0, 0.0],
-                    ]
-                };
-
-                if eq(camera.get_perspective()) {
-                    println!("perspective is zero");
-                }
-                if eq(camera.get_view_rot()) {
-                    println!("view rot is zero");
-                }
-                if eq(camera.get_view_translation()) {
-                    println!("view trans is zero");
-                }
-                if eq(chunk_uniforms.model_rotation) {
-                    println!("model rot is zero");
-                }
-                if eq(chunk_uniforms.model_translation) {
-                    println!("model trans is zero");
-                }
-
                 let uniforms = uniform! {
-                    projection: camera.get_perspective(),
+                    projection: camera.get_projection(),
                     view_translation: camera.get_view_translation(),
-                    view_rotation: camera.get_view_rot(),
+                    view_rotation: camera.get_view_rotation(),
                     model_translation: chunk_uniforms.model_translation,
                     model_rotation: chunk_uniforms.model_rotation,
                     atlas: world_uniforms.texture_atlas,
@@ -137,6 +112,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
+    #[allow(dead_code)]
     pub fn filled(coords: [i32; 3], block_type: &'static BlockType) -> Chunk {
         let mut blocks: Box<[[[Option<Block>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]> =
             vec![[[None; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]
@@ -715,6 +691,7 @@ impl Chunk {
         (chunk, inchunk)
     }
 
+    #[allow(dead_code)]
     pub fn get_global_coords_from_local_coord<B: Into<i32> + Copy>(
         chunk: [i32; 3],
         block: [B; 3],

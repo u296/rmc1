@@ -2,9 +2,10 @@ use std::fs;
 use std::path::Path;
 
 use crate::block::types::*;
-use crate::camera::FirstPersonCamera;
+use crate::camera::{Camera, FirstPersonCamera};
 use crate::chunk::*;
 use crate::graphics::*;
+use crate::hud::Hud;
 use crate::terraingen::TerrainGenerator;
 
 use log::*;
@@ -38,6 +39,8 @@ pub struct World {
     texture_atlas: CompressedSrgbTexture2d,
     sky_shader: Program,
     sky_mesh: Mesh<SkyVertex>,
+
+    hud: Hud,
 }
 
 impl World {
@@ -207,14 +210,13 @@ impl World {
 
         World {
             camera: FirstPersonCamera::new(
-                display,
                 [
                     (width / 2) as f32,
                     heightmap[0][0] as f32,
                     (depth / 2) as f32,
                 ],
                 [0.0, 0.0, 0.0],
-                90.0,
+                1.0 / 4.0,
                 16.0 / 9.0,
             ),
             chunks: chunks,
@@ -224,6 +226,7 @@ impl World {
             texture_atlas: Self::create_texture_atlas(display).unwrap(),
             sky_shader: Self::create_sky_shader(display).unwrap(),
             sky_mesh: Self::create_sky_mesh(display),
+            hud: Hud::new(display),
         }
     }
 
@@ -317,8 +320,8 @@ impl World {
         };
 
         let sky_uniforms = uniform! {
-            view_rotation: self.camera.get_view_rot(),
-            projection: self.camera.get_perspective(),
+            view_rotation: self.camera.get_view_rotation(),
+            projection: self.camera.get_projection(),
         };
 
         frame
@@ -362,7 +365,8 @@ impl World {
             );
         }
 
-        self.camera.draw_hud(frame);
+        //self.camera.draw_hud(frame);
+        self.hud.render(frame, *self.camera.get_aspect_ratio());
     }
 
     pub fn reload_assets(&mut self, display: &Display) -> Result<(), Box<dyn std::error::Error>> {

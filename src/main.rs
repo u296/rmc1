@@ -2,6 +2,7 @@ mod block;
 mod camera;
 mod chunk;
 mod graphics;
+mod hud;
 mod input;
 mod terraingen;
 mod world;

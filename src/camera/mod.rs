@@ -1,11 +1,7 @@
 pub mod controller;
-mod hud;
 
 use std::cell::RefCell;
-
-use glium::{Display, Surface};
-
-use hud::Hud;
+use std::f32::consts::TAU;
 
 pub const CLIP_NEAR: f32 = 0.01;
 pub const CLIP_FAR: f32 = 64.0;
@@ -27,7 +23,7 @@ impl Values {
     }
 
     fn recalculate(&mut self, position: [f32; 3], rotation: [f32; 3], fov: f32, aspect_ratio: f32) {
-        let fov = fov.to_radians();
+        let fov = fov * TAU;
 
         let f = 1.0 / (fov / 2.0).tan();
 
@@ -49,9 +45,10 @@ impl Values {
             ],
         ];
 
-        let (sy, cy) = rotation[0].sin_cos();
-        let (sp, cp) = rotation[1].sin_cos();
-        //let (sr, cr) = self.rotation.2.sin_cos();
+        // TAU to convert to radians, negative to rotate clockwise
+        let (sy, cy) = (TAU * -rotation[0]).sin_cos();
+        let (sp, cp) = (TAU * -rotation[1]).sin_cos();
+        //let (sr, cr) = (TAU * -rotation[2]).sin_cos();
 
         self.view_rotation_matrix = [
             [cy, sp * sy, -sy * cp, 0.0],
@@ -60,9 +57,8 @@ impl Values {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let (sy, cy) = (-rotation[0]).sin_cos();
-        let (sp, cp) = (-rotation[1]).sin_cos();
-        //let (sr, cr) = (-self.rotation.2).sin_cos();
+        let (sy, cy) = (TAU * rotation[0]).sin_cos();
+        let (sp, cp) = (TAU * rotation[1]).sin_cos();
 
         self.inverse_view_rotation_matrix = [
             [cy, 0.0, -sy, 0.0],
@@ -109,18 +105,36 @@ impl Values {
     }
 }
 
+pub trait Camera {
+    // these return matrices that manipulate the world around the camera
+    fn get_view_translation(&self) -> [[f32; 4]; 4];
+    fn get_view_rotation(&self) -> [[f32; 4]; 4];
+    fn get_projection(&self) -> [[f32; 4]; 4];
+
+    fn get_position(&self) -> &[f32; 3];
+    fn get_position_mut(&mut self) -> &mut [f32; 3];
+
+    fn get_rotation(&self) -> &[f32; 3];
+    fn get_rotation_mut(&mut self) -> &mut [f32; 3];
+
+    fn get_aspect_ratio(&self) -> &f32;
+    fn get_aspect_ratio_mut(&mut self) -> &mut f32;
+
+    fn get_forward_direction(&self) -> [f32; 3];
+    fn get_right_direction(&self) -> [f32; 3];
+}
+
+// all angles are in turns
 pub struct FirstPersonCamera {
     position: [f32; 3],
-    rotation: [f32; 3], // yaw pitch roll (radians)
-    fov: f32,           // in degrees
+    rotation: [f32; 3],
+    fov: f32,
     aspect_ratio: f32,
-    hud: Hud,
     values: RefCell<Values>,
 }
 
 impl FirstPersonCamera {
     pub fn new(
-        display: &Display,
         pos: [f32; 3],
         rotation: [f32; 3],
         fov: f32,
@@ -131,24 +145,43 @@ impl FirstPersonCamera {
             rotation: rotation,
             fov: fov,
             aspect_ratio: aspect_ratio,
-            hud: Hud::new(display),
             values: RefCell::new(Values {
                 dirty: true,
                 ..Default::default()
             }),
         }
     }
+}
 
-    pub fn get_position(&self) -> [f32; 3] {
-        self.position
+impl Camera for FirstPersonCamera {
+    fn get_position(&self) -> &[f32; 3] {
+        &self.position
     }
 
-    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
-        self.aspect_ratio = aspect_ratio;
+    fn get_position_mut(&mut self) -> &mut [f32; 3] {
         self.values.borrow_mut().dirty = true;
+        &mut self.position
     }
 
-    pub fn get_perspective(&self) -> [[f32; 4]; 4] {
+    fn get_rotation(&self) -> &[f32; 3] {
+        &self.rotation
+    }
+
+    fn get_rotation_mut(&mut self) -> &mut [f32; 3] {
+        self.values.borrow_mut().dirty = true;
+        &mut self.rotation
+    }
+
+    fn get_aspect_ratio(&self) -> &f32 {
+        &self.aspect_ratio
+    }
+
+    fn get_aspect_ratio_mut(&mut self) -> &mut f32 {
+        self.values.borrow_mut().dirty = true;
+        &mut self.aspect_ratio
+    }
+
+    fn get_projection(&self) -> [[f32; 4]; 4] {
         if self.values.borrow().is_dirty() {
             self.values.borrow_mut().recalculate(
                 self.position,
@@ -161,7 +194,7 @@ impl FirstPersonCamera {
         self.values.borrow().perspective_matrix
     }
 
-    pub fn get_view_rot(&self) -> [[f32; 4]; 4] {
+    fn get_view_rotation(&self) -> [[f32; 4]; 4] {
         if self.values.borrow().is_dirty() {
             self.values.borrow_mut().recalculate(
                 self.position,
@@ -174,20 +207,7 @@ impl FirstPersonCamera {
         self.values.borrow().view_rotation_matrix
     }
 
-    pub fn get_inverse_view_rot(&self) -> [[f32; 4]; 4] {
-        if self.values.borrow().is_dirty() {
-            self.values.borrow_mut().recalculate(
-                self.position,
-                self.rotation,
-                self.fov,
-                self.aspect_ratio,
-            );
-        }
-
-        self.values.borrow().inverse_view_rotation_matrix
-    }
-
-    pub fn get_view_translation(&self) -> [[f32; 4]; 4] {
+    fn get_view_translation(&self) -> [[f32; 4]; 4] {
         if self.values.borrow().is_dirty() {
             self.values.borrow_mut().recalculate(
                 self.position,
@@ -200,17 +220,7 @@ impl FirstPersonCamera {
         self.values.borrow().view_translation_matrix
     }
 
-    pub fn rotate_yaw(&mut self, degrees: f32) {
-        self.rotation[0] += degrees.to_radians();
-        self.values.borrow_mut().dirty = true;
-    }
-
-    pub fn rotate_pitch(&mut self, degrees: f32) {
-        self.rotation[1] += degrees.to_radians();
-        self.values.borrow_mut().dirty = true;
-    }
-
-    pub fn get_view_dir(&self) -> [f32; 3] {
+    fn get_forward_direction(&self) -> [f32; 3] {
         if self.values.borrow().is_dirty() {
             self.values.borrow_mut().recalculate(
                 self.position,
@@ -223,7 +233,7 @@ impl FirstPersonCamera {
         self.values.borrow().view_dir
     }
 
-    pub fn get_right_dir(&self) -> [f32; 3] {
+    fn get_right_direction(&self) -> [f32; 3] {
         if self.values.borrow().is_dirty() {
             self.values.borrow_mut().recalculate(
                 self.position,
@@ -234,9 +244,5 @@ impl FirstPersonCamera {
         }
 
         self.values.borrow().right_dir
-    }
-
-    pub fn draw_hud(&self, frame: &mut impl Surface) {
-        self.hud.render(frame, self.aspect_ratio);
     }
 }
