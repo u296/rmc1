@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::block::types::*;
-use crate::camera::{Camera, FirstPersonCamera};
+use crate::camera::*;
 use crate::chunk::*;
 use crate::graphics::*;
 use crate::hud::Hud;
@@ -29,7 +29,7 @@ const CHUNK_COLOR_SHADER_FRAG: &'static str = include_str!("shaders/chunk/color.
 const TEXTURE_ATLAS: &'static [u8] = include_bytes!("../atlas.png");
 
 pub struct World {
-    pub camera: FirstPersonCamera,
+    pub camera: OrbitalCamera,
     pub chunks: Vec<Chunk>,
     chunk_meshes: Vec<[ChunkMesh; 2]>, // [0] is normal chunkmesh [1] is transparent chunkmesh
     dirty_chunkmeshes: Vec<usize>,     // indices of the chunkmeshes that need to be rebuilt
@@ -209,7 +209,8 @@ impl World {
         info!("finished generating world");
 
         World {
-            camera: FirstPersonCamera::new(
+            camera: OrbitalCamera::new(
+                -2.0,
                 [
                     (width / 2) as f32,
                     heightmap[0][0] as f32,
