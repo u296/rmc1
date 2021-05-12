@@ -109,7 +109,7 @@ impl Values {
     }
 }
 
-pub struct Camera {
+pub struct FirstPersonCamera {
     position: [f32; 3],
     rotation: [f32; 3], // yaw pitch roll (radians)
     fov: f32,           // in degrees
@@ -118,15 +118,15 @@ pub struct Camera {
     values: RefCell<Values>,
 }
 
-impl Camera {
+impl FirstPersonCamera {
     pub fn new(
         display: &Display,
         pos: [f32; 3],
         rotation: [f32; 3],
         fov: f32,
         aspect_ratio: f32,
-    ) -> Camera {
-        Camera {
+    ) -> FirstPersonCamera {
+        FirstPersonCamera {
             position: pos,
             rotation: rotation,
             fov: fov,

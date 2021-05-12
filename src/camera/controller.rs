@@ -1,6 +1,6 @@
 use log::trace;
 
-use super::Camera;
+use crate::camera::FirstPersonCamera;
 
 const MOVESPEED: f32 = 10.0;
 
@@ -14,7 +14,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn update_camera(&self, camera: &mut Camera, seconds: f32) {
+    pub fn update_camera(&self, camera: &mut FirstPersonCamera, seconds: f32) {
         let forward = camera.get_view_dir();
         let right = camera.get_right_dir();
 
