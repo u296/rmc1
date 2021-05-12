@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 pub use crate::block::*;
-use crate::camera::FirstPersonCamera;
+use crate::camera::Camera;
 use crate::graphics::{Mesh, Vertex, WorldUniforms};
 
 #[allow(unused_imports)]
@@ -83,7 +83,7 @@ impl ChunkMesh {
         params: &DrawParameters,
         world_uniforms: &WorldUniforms,
         chunk_uniforms: &ChunkUniforms,
-        camera: &FirstPersonCamera,
+        camera: &Camera,
     ) {
         match &self.mesh {
             Some(mesh) => {
