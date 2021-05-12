@@ -7,7 +7,7 @@ pub const CLIP_NEAR: f32 = 0.01;
 pub const CLIP_FAR: f32 = 64.0;
 
 #[derive(Default)]
-struct Values {
+struct FirstPersonCameraCache {
     dirty: bool,
     perspective_matrix: [[f32; 4]; 4],
     view_rotation_matrix: [[f32; 4]; 4],
@@ -17,7 +17,7 @@ struct Values {
     view_translation_matrix: [[f32; 4]; 4],
 }
 
-impl Values {
+impl FirstPersonCameraCache {
     fn is_dirty(&self) -> bool {
         self.dirty
     }
@@ -130,7 +130,7 @@ pub struct FirstPersonCamera {
     rotation: [f32; 3],
     fov: f32,
     aspect_ratio: f32,
-    values: RefCell<Values>,
+    values: RefCell<FirstPersonCameraCache>,
 }
 
 impl FirstPersonCamera {
@@ -145,7 +145,7 @@ impl FirstPersonCamera {
             rotation: rotation,
             fov: fov,
             aspect_ratio: aspect_ratio,
-            values: RefCell::new(Values {
+            values: RefCell::new(FirstPersonCameraCache {
                 dirty: true,
                 ..Default::default()
             }),
