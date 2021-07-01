@@ -26,6 +26,6 @@ void main() {
 
 
     v_texcoord = uv;
-    v_normal = normalize(normal);//normalize((view_rotation * model_rotation * vec4(normal, 1.0)).xyz);
+    v_normal = normalize(normal);
     v_local_pos = local_vertex_position;
 }

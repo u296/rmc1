@@ -1,6 +1,5 @@
 use std::error::Error;
 
-use glium::implement_vertex;
 use glium::index::PrimitiveType;
 use glium::program;
 use glium::uniform;
