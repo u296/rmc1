@@ -3,6 +3,7 @@ use glium::index::*;
 use glium::texture::*;
 use glium::uniforms::Sampler;
 use glium::vertex::*;
+use glium::Surface;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vertex {
@@ -29,4 +30,8 @@ pub struct Mesh<V: Copy> {
 pub struct WorldUniforms<'a> {
     pub texture_atlas: Sampler<'a, CompressedSrgbTexture2d>,
     pub render_distance: f32,
+}
+
+pub trait Renderable<S: Surface> {
+    fn render(&self, surface: &mut S) -> Result<(), Box<dyn std::error::Error>>;
 }
