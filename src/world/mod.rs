@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::error::Error;
 
 use crate::block::types::*;
 use crate::camera::*;
@@ -8,25 +9,43 @@ use crate::graphics::*;
 use crate::hud::Hud;
 use crate::terraingen::TerrainGenerator;
 
+mod sky;
+use sky::Sky;
+
 use log::*;
 
-use glium::index::PrimitiveType;
 use glium::texture::*;
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
 use glium::*;
 
-#[derive(Debug, Clone, Copy)]
-struct SkyVertex {
-    position: [f32; 3],
+
+
+const CHUNK_SHADER_VERT: &'static str = include_str!("../shaders/chunk/vertex.vert");
+const CHUNK_COLOR_SHADER_FRAG: &'static str = include_str!("../shaders/chunk/color.frag");
+
+const TEXTURE_ATLAS: &'static [u8] = include_bytes!("../../atlas.png");
+
+fn shader_load_helper<P: AsRef<Path>>(display: &Display, vertex_path: P, fragment_path: P, vertex_fallback: &str, fragment_fallback: &str) -> Program {
+    let plan_a = || -> Result<Program, Box<dyn Error>>{
+        match program!(display,
+        420 => {
+            vertex: &fs::read_to_string(vertex_path)?,
+            fragment: &fs::read_to_string(fragment_path)?
+        }) {
+            Ok(p) => Ok(p),
+            Err(e) => Err(Box::new(e))
+        }
+    };
+
+    plan_a().or_else(|_| {
+        program!(display,
+        420 => {
+            vertex: vertex_fallback,
+            fragment: fragment_fallback
+        }
+        )
+    }).unwrap()
 }
-implement_vertex!(SkyVertex, position);
-
-const SKY_SHADER_VERT: &'static str = include_str!("shaders/sky_shader.vert");
-const SKY_SHADER_FRAG: &'static str = include_str!("shaders/sky_shader.frag");
-const CHUNK_SHADER_VERT: &'static str = include_str!("shaders/chunk/vertex.vert");
-const CHUNK_COLOR_SHADER_FRAG: &'static str = include_str!("shaders/chunk/color.frag");
-
-const TEXTURE_ATLAS: &'static [u8] = include_bytes!("../atlas.png");
 
 pub struct World {
     pub camera: OrbitalCamera,
@@ -37,53 +56,12 @@ pub struct World {
     chunk_color_shader: Program,
 
     texture_atlas: CompressedSrgbTexture2d,
-    sky_shader: Program,
-    sky_mesh: Mesh<SkyVertex>,
+    sky: Sky,
 
     hud: Hud,
 }
 
 impl World {
-    fn create_sky_mesh(display: &Display) -> Mesh<SkyVertex> {
-        let sky_verts_data = &[
-            SkyVertex {
-                position: [-1.0, -1.0, -1.0],
-            },
-            SkyVertex {
-                position: [-1.0, -1.0, 1.0],
-            },
-            SkyVertex {
-                position: [-1.0, 1.0, -1.0],
-            },
-            SkyVertex {
-                position: [-1.0, 1.0, 1.0],
-            },
-            SkyVertex {
-                position: [1.0, -1.0, -1.0],
-            },
-            SkyVertex {
-                position: [1.0, -1.0, 1.0],
-            },
-            SkyVertex {
-                position: [1.0, 1.0, -1.0],
-            },
-            SkyVertex {
-                position: [1.0, 1.0, 1.0],
-            },
-        ];
-
-        let sky_indices_data = &[
-            0u32, 1, 2, 2, 3, 1, 4, 5, 6, 5, 6, 7, 0, 1, 4, 4, 5, 1, 2, 3, 6, 6, 7, 3, 0, 2, 4, 4,
-            6, 2, 1, 3, 5, 5, 7, 3,
-        ];
-
-        Mesh {
-            vertices: VertexBuffer::new(display, sky_verts_data).unwrap(),
-            indices: IndexBuffer::new(display, PrimitiveType::TrianglesList, sky_indices_data)
-                .unwrap(),
-        }
-    }
-
     fn shader_helper<P: AsRef<Path>>(path: P, default: &str) -> String {
         match fs::read_to_string(path) {
             Ok(s) => s,
@@ -102,15 +80,6 @@ impl World {
                 default.into()
             }
         }
-    }
-
-    fn create_sky_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
-        Ok(program!(display,
-            420 => {
-                vertex: &Self::shader_helper("shaders/sky_shader.vert", SKY_SHADER_VERT),
-                fragment: &Self::shader_helper("shaders/sky_shader.frag", SKY_SHADER_FRAG)
-            }
-        )?)
     }
 
     fn create_chunk_color_shader(display: &Display) -> Result<Program, Box<dyn std::error::Error>> {
@@ -225,8 +194,7 @@ impl World {
             dirty_chunkmeshes: dirty_chunkmeshes,
             chunk_color_shader: Self::create_chunk_color_shader(display).unwrap(),
             texture_atlas: Self::create_texture_atlas(display).unwrap(),
-            sky_shader: Self::create_sky_shader(display).unwrap(),
-            sky_mesh: Self::create_sky_mesh(display),
+            sky: Sky::new(display),
             hud: Hud::new(display),
         }
     }
@@ -287,6 +255,10 @@ impl World {
                 2,
             );
         }
+        
+        self.hud.set_aspect_ratio(*self.camera.get_aspect_ratio());
+        self.sky.set_view_rotation(self.camera.get_view_rotation());
+        self.sky.set_projection(self.camera.get_projection());
     }
 
     pub fn render(&mut self, frame: &mut impl Surface) {
@@ -297,15 +269,6 @@ impl World {
                 ..Default::default()
             },
             blend: Blend::alpha_blending(),
-            ..Default::default()
-        };
-
-        let color_only_overwrite_params = glium::DrawParameters {
-            depth: glium::Depth {
-                test: glium::draw_parameters::DepthTest::Overwrite,
-                write: false,
-                ..Default::default()
-            },
             ..Default::default()
         };
 
@@ -320,20 +283,8 @@ impl World {
             ..Default::default()
         };
 
-        let sky_uniforms = uniform! {
-            view_rotation: self.camera.get_view_rotation(),
-            projection: self.camera.get_projection(),
-        };
 
-        frame
-            .draw(
-                &self.sky_mesh.vertices,
-                &self.sky_mesh.indices,
-                &self.sky_shader,
-                &sky_uniforms,
-                &color_only_overwrite_params,
-            )
-            .unwrap();
+        self.sky.render(frame);
 
         let worlduniforms = WorldUniforms {
             texture_atlas: self
@@ -366,14 +317,13 @@ impl World {
             );
         }
 
-        //self.camera.draw_hud(frame);
-        self.hud.render(frame, *self.camera.get_aspect_ratio());
+        self.hud.render(frame);
     }
 
     pub fn reload_assets(&mut self, display: &Display) -> Result<(), Box<dyn std::error::Error>> {
         self.chunk_color_shader = Self::create_chunk_color_shader(display)?;
         self.texture_atlas = Self::create_texture_atlas(display)?;
-        self.sky_shader = Self::create_sky_shader(display)?;
+        self.sky.reload(display);
 
         Ok(())
     }

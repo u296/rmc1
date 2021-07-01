@@ -1,4 +1,4 @@
-use std::cell::{RefCell};
+use std::error::Error;
 
 use glium::{Display, Surface};
 
@@ -7,28 +7,31 @@ use crate::graphics::Renderable;
 mod crosshair;
 mod hotbar;
 
+
 pub struct Hud {
-    crosshair: RefCell<crosshair::Crosshair>,
+    crosshair: crosshair::Crosshair,
 }
 
 impl Hud {
-    
-
     pub fn new(display: &Display) -> Self {
         Hud {
-            crosshair: RefCell::new(crosshair::Crosshair::new(display))
+            crosshair: crosshair::Crosshair::new(display)
         }
     }
 
-    pub fn render(&self, frame: &mut impl Surface, aspect_ratio: f32) {
-        let mut crosshair = self.crosshair.borrow_mut();
-        crosshair.set_aspect_ratio(aspect_ratio);
-        drop(crosshair);
+    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
+        self.crosshair.set_aspect_ratio(aspect_ratio);
+    }
+}
 
-        let components = &[self.crosshair.borrow()];
+impl<S: Surface> Renderable<S> for Hud {
+    fn render(&self, surface: &mut S) -> Result<(), Box<dyn Error>> {
+        let components = &[&self.crosshair];
 
         for component in components.iter() {
-            component.render(frame);
+            component.render(surface)?;
         }
+
+        Ok(())
     }
 }
