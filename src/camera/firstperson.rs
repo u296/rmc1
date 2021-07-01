@@ -112,6 +112,7 @@ pub struct FirstPersonCamera {
     values: RefCell<FirstPersonCameraCache>,
 }
 
+#[allow(dead_code)]
 impl FirstPersonCamera {
     pub fn new(
         pos: [f32; 3],
