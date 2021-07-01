@@ -17,8 +17,14 @@ pub struct Vertex2d {
     pub position: [f32; 2],
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct Vertex3d {
+    pub position: [f32; 3],
+}
+
 implement_vertex!(Vertex, position, uv, normal);
 implement_vertex!(Vertex2d, position);
+implement_vertex!(Vertex3d, position);
 
 pub struct Mesh<V: Copy> {
     pub vertices: VertexBuffer<V>,
